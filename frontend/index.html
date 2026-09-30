@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Marquee — Book Tickets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15130f;
+    --panel:#1c1912;
+    --panel-2:#242017;
+    --line:#332d20;
+    --gold:#d8a94e;
+    --gold-dim:#8a6f38;
+    --velvet:#9b2b2b;
+    --velvet-bright:#c94c3f;
+    --parchment:#efe8da;
+    --stone:#8b8478;
+    --green:#5c8a5c;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    background:var(--ink); color:var(--parchment);
+    font-family:'Inter',system-ui,sans-serif;
+    margin:0; min-height:100%;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  h1,h2,h3,.marquee{font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:.02em;}
+  .wrap{max-width:900px; margin:0 auto; padding:28px 20px 80px;}
+  header.top{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:22px;
+    flex-wrap:wrap; gap:10px;
+  }
+  header.top .brand{font-size:26px; color:var(--gold);}
+  header.top .brand span{color:var(--parchment);}
+  header.top select{
+    background:var(--panel); color:var(--parchment); border:1px solid var(--line);
+    border-radius:var(--radius); padding:8px 10px; font-size:14px; font-family:inherit;
+  }
+
+  .dates{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:26px;}
+  .date-pill{
+    flex:0 0 auto; border:1px solid var(--line); background:var(--panel);
+    color:var(--stone); padding:10px 16px; border-radius:999px; cursor:pointer;
+    font-size:13px; text-align:center; line-height:1.3; transition:border-color .15s, color .15s;
+  }
+  .date-pill .d{display:block; font-family:'Oswald'; font-size:16px; color:inherit;}
+  .date-pill:hover{border-color:var(--gold-dim);}
+  .date-pill.active{border-color:var(--gold); color:var(--gold); background:#241c10;}
+
+  .movie{
+    border:1px solid var(--line); border-radius:var(--radius); background:var(--panel);
+    padding:18px 20px; margin-bottom:14px;
+  }
+  .movie h3{margin:0 0 3px; font-size:20px;}
+  .movie .meta{color:var(--stone); font-size:13px; margin-bottom:12px;}
+  .times{display:flex; flex-wrap:wrap; gap:8px;}
+  .time-chip{
+    border:1px solid var(--gold-dim); color:var(--gold); background:transparent;
+    padding:7px 14px; border-radius:var(--radius); font-size:14px; cursor:pointer;
+    font-family:'Inter'; transition:background .15s;
+  }
+  .time-chip:hover{background:#2a2313;}
+
+  .empty{color:var(--stone); font-size:14px; padding:30px 0; text-align:center;}
+
+  /* ---- Seat map ---- */
+  .backdrop{
+    position:fixed; inset:0; background:rgba(10,9,6,.72); display:flex;
+    align-items:flex-end; justify-content:center; z-index:20;
+  }
+  @media (min-width:720px){ .backdrop{align-items:center;} }
+  .sheet{
+    background:var(--ink); border:1px solid var(--line); width:100%; max-width:640px;
+    max-height:92vh; overflow-y:auto; border-radius:var(--radius) var(--radius) 0 0;
+    padding:22px 22px 100px;
+  }
+  @media (min-width:720px){ .sheet{border-radius:var(--radius); padding-bottom:110px;} }
+  .sheet .close{float:right; background:none; border:none; color:var(--stone); font-size:22px; cursor:pointer; line-height:1;}
+  .sheet h2{margin:0 0 2px; font-size:22px;}
+  .sheet .sub{color:var(--stone); font-size:13px; margin-bottom:22px;}
+
+  .screen-arc{
+    width:80%; margin:0 auto 26px; height:34px;
+    border-radius:0 0 50% 50%/0 0 100% 100%;
+    background:linear-gradient(180deg,#3a3320,transparent);
+    border-bottom:2px solid var(--gold-dim);
+    text-align:center; color:var(--stone); font-size:11px; letter-spacing:.15em;
+    padding-top:2px;
+  }
+  .rows{display:flex; flex-direction:column; gap:6px; align-items:center; margin-bottom:20px;}
+  .row{display:flex; gap:6px; align-items:center;}
+  .row .label{width:16px; color:var(--stone); font-size:12px; text-align:right; margin-right:2px;}
+  .seat{
+    width:26px; height:26px; border-radius:5px 5px 8px 8px; border:1px solid var(--gold-dim);
+    background:transparent; cursor:pointer; font-size:10px; color:var(--stone);
+    display:flex; align-items:center; justify-content:center; font-family:'Inter';
+  }
+  .seat[data-cat="Recliner"]{border-color:#7a6a9b;}
+  .seat[data-cat="Gold"]{border-color:var(--gold-dim);}
+  .seat[data-cat="Silver"]{border-color:#5c6b78;}
+  .seat.available:hover{background:#241f14;}
+  .seat.selected{background:var(--gold); border-color:var(--gold); color:#1c1912; font-weight:600;}
+  .seat.held, .seat.booked{
+    background:repeating-linear-gradient(45deg,#2a2620,#2a2620 3px,#221f19 3px,#221f19 6px);
+    border-color:#463e2c; color:#5c5744; cursor:not-allowed;
+  }
+
+  .legend{display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--stone); margin-bottom:18px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .legend i{width:14px; height:14px; border-radius:3px; display:inline-block; border:1px solid var(--gold-dim);}
+  .legend i.sel{background:var(--gold); border-color:var(--gold);}
+  .legend i.unavail{background:#2a2620; border-color:#463e2c;}
+
+  .summary-bar{
+    position:fixed; left:0; right:0; bottom:0; background:var(--panel-2); border-top:1px solid var(--line);
+    padding:14px 22px; display:flex; align-items:center; justify-content:space-between; z-index:25;
+    padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  }
+  .summary-bar .info{font-size:14px;}
+  .summary-bar .info b{color:var(--gold); font-family:'Oswald'; font-size:17px;}
+  button.cta{
+    background:var(--velvet); color:var(--parchment); border:none; padding:12px 22px;
+    border-radius:var(--radius); font-size:15px; font-family:'Oswald'; letter-spacing:.03em;
+    cursor:pointer; transition:background .15s;
+  }
+  button.cta:hover{background:var(--velvet-bright);}
+  button.cta:disabled{background:#3a352a; color:var(--stone); cursor:not-allowed;}
+  button.ghost{
+    background:none; border:1px solid var(--line); color:var(--stone); padding:12px 18px;
+    border-radius:var(--radius); font-family:'Inter'; cursor:pointer;
+  }
+
+  .timer{color:var(--velvet-bright); font-family:'Oswald'; font-size:14px;}
+
+  .toast{
+    position:fixed; top:20px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--gold); color:var(--parchment);
+    padding:12px 20px; border-radius:var(--radius); font-size:14px; z-index:40;
+  }
+  .toast.err{border-color:var(--velvet-bright);}
+
+  .confirm-view{text-align:center; padding:30px 10px;}
+  .confirm-view .ok{color:var(--green); font-size:44px; margin-bottom:10px;}
+  .confirm-view .oid{color:var(--stone); font-size:13px; margin-top:14px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">MARQUEE <span>tickets</span></div>
+    <select id="theatreSelect"></select>
+  </header>
+
+  <div class="dates" id="dates"></div>
+  <div id="movies"></div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+const API = window.location.origin.includes(':8000') ? window.location.origin
+          : (window.MARQUEE_API_BASE || 'http://127.0.0.1:8000');
+
+let state = { theatreId: null, date: null, showId: null, seats: [], selected: new Set(),
+              hold: null, holdTimer: null };
+
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, html) => { const n = document.createElement(tag); if(cls) n.className=cls; if(html!==undefined) n.innerHTML=html; return n; };
+
+function toast(msg, isErr){
+  const t = el('div', 'toast'+(isErr?' err':''), msg);
+  $('#toastRoot').appendChild(t);
+  setTimeout(()=>t.remove(), 3200);
+}
+
+async function api(path, opts){
+  const r = await fetch(API+path, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{}));
+  let body = null;
+  try { body = await r.json(); } catch(e) {}
+  if(!r.ok) throw { status:r.status, body };
+  return body;
+}
+
+function fmtDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  return { dow: d.toLocaleDateString(undefined,{weekday:'short'}), num: d.getDate(),
+           mon: d.toLocaleDateString(undefined,{month:'short'}) };
+}
+
+async function loadTheatres(){
+  const theatres = await api('/theatres');
+  const sel = $('#theatreSelect');
+  sel.innerHTML = '';
+  theatres.forEach(t => {
+    const opt = el('option', null, `${t.name} — ${t.city}`);
+    opt.value = t.theatre_id;
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => { state.theatreId = Number(sel.value); loadDates(); };
+  state.theatreId = theatres[0].theatre_id;
+  sel.value = state.theatreId;
+  await loadDates();
+}
+
+async function loadDates(){
+  const dates = await api(`/theatres/${state.theatreId}/dates`);
+  const wrap = $('#dates'); wrap.innerHTML = '';
+  dates.slice(0,7).forEach((iso,i) => {
+    const f = fmtDate(iso);
+    const pill = el('div', 'date-pill'+(i===0?' active':''), `<span class="d">${f.num}</span>${f.dow} ${f.mon}`);
+    pill.onclick = () => {
+      document.querySelectorAll('.date-pill').forEach(p=>p.classList.remove('active'));
+      pill.classList.add('active');
+      state.date = iso; loadShows();
+    };
+    wrap.appendChild(pill);
+  });
+  state.date = dates[0];
+  await loadShows();
+}
+
+async function loadShows(){
+  const data = await api(`/theatres/${state.theatreId}/shows?show_date=${state.date}`);
+  const wrap = $('#movies'); wrap.innerHTML = '';
+  if(!data.shows.length){ wrap.appendChild(el('div','empty','No shows scheduled for this date.')); return; }
+
+  const byMovie = {};
+  data.shows.forEach(s => {
+    const key = s.movie+'|'+s.language+'|'+s.format;
+    (byMovie[key] = byMovie[key] || {movie:s.movie, language:s.language, format:s.format, shows:[]}).shows.push(s);
+  });
+
+  Object.values(byMovie).forEach(group => {
+    const card = el('div','movie');
+    card.appendChild(el('h3', null, group.movie));
+    card.appendChild(el('div','meta', `${group.language} · ${group.format}`));
+    const times = el('div','times');
+    group.shows.forEach(s => {
+      const chip = el('button','time-chip', s.show_time);
+      chip.onclick = () => openSeatMap(s.show_id);
+      times.appendChild(chip);
+    });
+    card.appendChild(times);
+    wrap.appendChild(card);
+  });
+}
+
+async function openSeatMap(showId){
+  state.showId = showId; state.selected = new Set(); state.hold = null;
+  clearInterval(state.holdTimer);
+  const data = await api(`/shows/${showId}/seats`);
+  state.seats = data.seats;
+
+  const rows = {};
+  data.seats.forEach(s => (rows[s.row_label] = rows[s.row_label] || []).push(s));
+  const rowLabels = Object.keys(rows).sort().reverse();
+
+  const backdrop = el('div','backdrop');
+  const sheet = el('div','sheet');
+  sheet.innerHTML = `
+    <button class="close" aria-label="Close">&times;</button>
+    <h2>${data.show.movie}</h2>
+    <div class="sub">${data.show.theatre} · ${data.show.screen} · ${data.show.show_time} · ${data.show.language} · ${data.show.format}</div>
+    <div class="screen-arc">SCREEN</div>
+    <div class="rows" id="rowsWrap"></div>
+    <div class="legend">
+      <span><i></i> Available</span>
+      <span><i class="sel"></i> Selected</span>
+      <span><i class="unavail"></i> Held / Booked</span>
+    </div>
+  `;
+  backdrop.appendChild(sheet);
+  $('#modalRoot').innerHTML = '';
+  $('#modalRoot').appendChild(backdrop);
+  sheet.querySelector('.close').onclick = closeModal;
+  backdrop.onclick = (e) => { if(e.target===backdrop) closeModal(); };
+
+  const rowsWrap = sheet.querySelector('#rowsWrap');
+  rowLabels.forEach(label => {
+    const rowDiv = el('div','row');
+    rowDiv.appendChild(el('div','label', label));
+    rows[label].sort((a,b)=>a.seat_number-b.seat_number).forEach(s => {
+      const btn = el('button','seat '+s.status.toLowerCase(), s.seat_number);
+      btn.dataset.cat = s.category;
+      btn.dataset.seatId = s.seat_id;
+      if(s.status === 'AVAILABLE'){
+        btn.onclick = () => toggleSeat(s.seat_id, btn);
+      } else {
+        btn.disabled = true;
+      }
+      rowDiv.appendChild(btn);
+    });
+    rowsWrap.appendChild(rowDiv);
+  });
+
+  renderSummaryBar();
+}
+
+function closeModal(){
+  clearInterval(state.holdTimer);
+  $('#modalRoot').innerHTML = '';
+}
+
+function toggleSeat(seatId, btn){
+  if(state.selected.has(seatId)){ state.selected.delete(seatId); btn.classList.remove('selected'); }
+  else {
+    if(state.selected.size >= 6){ toast('Max 6 seats per booking', true); return; }
+    state.selected.add(seatId); btn.classList.add('selected');
+  }
+  renderSummaryBar();
+}
+
+function seatById(id){ return state.seats.find(s=>s.seat_id===id); }
+
+function renderSummaryBar(){
+  document.querySelectorAll('.summary-bar').forEach(b=>b.remove());
+  const sheet = document.querySelector('.sheet');
+  if(!sheet) return;
+  const bar = el('div','summary-bar');
+
+  if(state.hold){
+    const total = [...state.selected].reduce((sum,id)=>sum+Number(seatById(id).price),0);
+    bar.innerHTML = `<div class="info">${state.selected.size} seat(s) held · <b>₹${total}</b> &nbsp;
+                      <span class="timer" id="holdTimer"></span></div>`;
+    const cta = el('button','cta','Confirm & Pay');
+    cta.onclick = confirmAndPay;
+    bar.appendChild(cta);
+    startHoldCountdown();
+  } else if(state.selected.size){
+    const total = [...state.selected].reduce((sum,id)=>sum+Number(seatById(id).price),0);
+    bar.innerHTML = `<div class="info">${state.selected.size} seat(s) selected · <b>₹${total}</b></div>`;
+    const cta = el('button','cta','Hold Seats');
+    cta.onclick = holdSeats;
+    bar.appendChild(cta);
+  } else {
+    bar.innerHTML = `<div class="info" style="color:var(--stone)">Select seats to continue</div>`;
+  }
+  sheet.appendChild(bar);
+}
+
+function startHoldCountdown(){
+  clearInterval(state.holdTimer);
+  const tick = () => {
+    const msLeft = new Date(state.hold.expires_at).getTime() - Date.now();
+    const t = document.getElementById('holdTimer');
+    if(!t) return;
+    if(msLeft <= 0){
+      t.textContent = 'Hold expired';
+      clearInterval(state.holdTimer);
+      toast('Your seat hold expired. Please select seats again.', true);
+      openSeatMap(state.showId);
+      return;
+    }
+    const m = Math.floor(msLeft/60000), s = Math.floor((msLeft%60000)/1000);
+    t.textContent = `Hold expires in ${m}:${String(s).padStart(2,'0')}`;
+  };
+  tick();
+  state.holdTimer = setInterval(tick, 1000);
+}
+
+async function holdSeats(){
+  try{
+    const hold = await api(`/shows/${state.showId}/hold`, {
+      method:'POST',
+      body: JSON.stringify({ user_id: 1, show_id: state.showId, seat_ids: [...state.selected] })
+    });
+    state.hold = hold;
+    renderSummaryBar();
+    toast('Seats held for 10 minutes.');
+  } catch(e){
+    toast((e.body && e.body.detail) || 'Those seats were just taken — try another.', true);
+    openSeatMap(state.showId);
+  }
+}
+
+async function confirmAndPay(){
+  try{
+    const booking = await api('/bookings/confirm', {
+      method:'POST',
+      body: JSON.stringify({ hold_id: state.hold.hold_id, lock_token: state.hold.lock_token })
+    });
+    // Simulate the payment gateway calling our webhook once payment succeeds.
+    await api('/webhooks/payment', {
+      method:'POST',
+      body: JSON.stringify({
+        event_id: 'evt_ui_'+booking.gateway_order_id,
+        gateway_order_id: booking.gateway_order_id,
+        type: 'payment.success',
+        amount: booking.amount
+      })
+    });
+    showConfirmation(booking);
+  } catch(e){
+    toast((e.body && e.body.detail) || 'Payment could not be completed.', true);
+  }
+}
+
+function showConfirmation(booking){
+  clearInterval(state.holdTimer);
+  const sheet = document.querySelector('.sheet');
+  sheet.innerHTML = `
+    <button class="close" aria-label="Close">&times;</button>
+    <div class="confirm-view">
+      <div class="ok">&#10003;</div>
+      <h2>Booking confirmed</h2>
+      <div class="sub">Booking #${booking.booking_id} · ₹${booking.amount}</div>
+      <div class="oid">Order ${booking.gateway_order_id}</div>
+    </div>
+  `;
+  sheet.querySelector('.close').onclick = () => { closeModal(); loadShows(); };
+}
+
+loadTheatres().catch(e => toast('Could not reach the booking API at '+API, true));
+</script>
+</body>
+</html>

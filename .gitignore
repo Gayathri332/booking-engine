@@ -1,0 +1,8 @@
+cd "C:\Users\HP\Downloads\booking-engine (1)\booking-engine"
+@"
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+"@ | Out-File -Encoding utf8 .gitignore
